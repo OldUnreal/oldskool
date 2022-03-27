@@ -21,7 +21,7 @@ simulated function PostRender( canvas Canvas )
   X = 0.95*Canvas.ClipX;
   Y = Canvas.ClipY-128;
   Canvas.Style = Style;
-  Canvas.Font = Font'WhiteFont';
+  Canvas.Font = MyFonts.GetMediumFont(Canvas.ClipX);
 /*
   for ( N=Level.NavigationPointList; N!=None; N=N.NextNavigationPoint )
     if ( N.IsA('ControlPoint') )
@@ -63,7 +63,7 @@ simulated function bool SpecialIdentify(Canvas Canvas, Actor Other )
   if ( !Other.IsA('ControlPoint') )
     return false;
 
-  Canvas.Font = Font'WhiteFont';
+  Canvas.Font = MyFonts.GetMediumFont(Canvas.ClipX);
   Canvas.DrawColor = RedColor;
   Canvas.DrawColor.R = 255 * (IdentifyFadeTime / 3.0);
 

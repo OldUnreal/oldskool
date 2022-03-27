@@ -22,43 +22,12 @@ WindowConsole(Playerpawn(Owner).Player.Console).Root.CreateWindow(class'OldSkool
 
 simulated function DrawFragCount(Canvas Canvas, int X, int Y)     //to use the scorekeeper's score....
 {
-local scorekeeper scoreholder;
-local color oldcol;
+  local scorekeeper scoreholder;
   scoreholder = scorekeeper(pawn(owner).FindInventoryType(class 'scorekeeper'));
-  Canvas.SetPos(X,Y);
-  if (realicons) {
-  Canvas.DrawIcon(Texture'Realskull', 1.0);
-  oldcol=canvas.drawcolor;
-  canvas.drawcolor=redcolor;  }
+  if (scoreholder == None)
+    DrawFragCountInternal(Canvas, X, Y, false);
   else
-  Canvas.DrawIcon(Texture'IconSkull', 1.0);  
-  Canvas.CurX -= 31;
-  Canvas.CurY += 23;
-  if ( scoreholder == None )
-    return;
-  Canvas.Font = Font'TinyWhiteFont';
-  if (scoreholder.score<10000)
-    Canvas.CurX+=6;
-  if (scoreholder.score<1000)
-    Canvas.CurX+=6;
-  if (scoreholder.score<100)
-    Canvas.CurX+=6;
-  if (scoreholder.score<10)
-    Canvas.CurX+=6;  
-  if (scoreholder.score<0)
-    Canvas.CurX-=6;
-  if (scoreholder.score<-9)
-    Canvas.CurX-=6;
-  if (scoreholder.score<-90)
-    Canvas.CurX-=6;
-    if (scoreholder.score<-900)
-    Canvas.CurX-=6;
-  if (scoreholder.score<-9000)
-    Canvas.CurX-=6;
-  Canvas.DrawText(scoreholder.score,False);
-    if (realicons)
-  canvas.drawcolor=oldcol;
-
+    DrawFragCountInternal(Canvas, X, Y, true, scoreholder.score);
 }
 
 defaultproperties

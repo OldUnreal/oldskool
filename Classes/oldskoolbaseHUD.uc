@@ -43,6 +43,54 @@ var string contents; //what it says :P
 var somemessage ShortMessages[4];  //events
 var somemessage CurrentPickup; //last pickup message
 var somemessage CriticalMessage; //last criticalevent
+
+// OldUnreal additions
+var float HUDScale, Scale;
+
+// If we allow the HUD and fonts to scale independently, we might need to adjust the Y offset of
+// icon + text pairs (e.g., health/armor) to ensure that they are nicely centered
+function GetIconAndTextOffsets(Canvas Canvas, Texture Icon, out float IconYOffset, out float TextYOffset)
+{
+  local float GlyphX, GlyphY, ScaledIconY;
+
+  Canvas.StrLen("0", GlyphX, GlyphY);
+  ScaledIconY = Icon.VSize * Scale;
+
+  if (ScaledIconY > GlyphY)
+	TextYOffset = (ScaledIconY-GlyphY) / 2;
+  else
+    IconYOffset = (GlyphY-ScaledIconY) / 2;
+}
+
+function GetInvIconAndTextOffsets(Canvas Canvas, Inventory Inv, out float IconYOffset, out float TextYOffset)
+{
+  local float GlyphX, GlyphY, ScaledIconY;
+
+  Canvas.StrLen("0", GlyphX, GlyphY);
+  ScaledIconY = GetInvIconVSize(Inv) * Scale;
+
+  if (ScaledIconY > GlyphY)
+	TextYOffset = (ScaledIconY-GlyphY) / 2;
+  else
+    IconYOffset = (GlyphY-ScaledIconY) / 2;
+}
+
+// gets non-scaled VSize for the Inventory's Icon
+function float GetInvIconVSize(Inventory Inv)
+{
+  local Texture Icon;
+
+  Icon = Inv.Icon;
+  if (Icon == None)
+  {
+    Icon = FindIcon(Inv);
+	if (Icon == None)
+	  return 0.0;
+  }
+
+  return Icon.VSize;
+}
+
 function Destroyed()
 {
   Super.Destroyed();
@@ -92,88 +140,97 @@ if (!isa('oldskoolhud')){
 }
 //new functionz to add stuff
 simulated function postrender(canvas canvas){
-local float ypos, YL, XL, fadevalue;
-local int i;
+  local float ypos, YL, XL, fadevalue;
+  local int i;
   local float StartX;    //endgame floatz....
   local InterpolationPoint ip;
   local int TempX,TempY;
   local Actor A;
   local Decoration D;
+  local Font TmpFont;
   HUDSetup(canvas);
   if ( PlayerPawn(Owner) != None )
   {
     if ( PlayerPawn(Owner).PlayerReplicationInfo == None )
       return;
+	  
     if ( bShowInfo && !self.isa('oldskoolhud'))         //check this first
-  {
-    ServerInfo.RenderInfo( Canvas );
-    return; }
+    {
+      ServerInfo.RenderInfo( Canvas );
+      return;
+	}
+	
     if ( PlayerPawn(Owner).bShowMenu )       //will end up going to uwindow (only called in sp mode)..
     {
       DisplayMenu(Canvas);
       return;
     }
-   if (!nohud){
-      bDrawFaceArea = false;
-  if ( showtalkface && !PlayerOwner.bShowScores  && Hudmode<5 )
-  {
-     bDrawFaceArea = (FaceTexture != None) && (FaceTime > Level.TimeSeconds);
+	
+   if (!nohud)
+   {
+     bDrawFaceArea = false;
+     if ( showtalkface && !PlayerOwner.bShowScores  && Hudmode<5 )
+     {
+       bDrawFaceArea = (FaceTexture != None) && (FaceTime > Level.TimeSeconds);
+     }
 
-  }
-      if ( PlayerPawn(Owner).bShowScores )
-    {
-      if ( ( PlayerPawn(Owner).Weapon != None ) && ( !PlayerPawn(Owner).Weapon.bOwnsCrossHair ) )
-        DrawCrossHair(Canvas, 0.5 * Canvas.ClipX - 8, 0.5 * Canvas.ClipY - 8);
-      if ( (PlayerPawn(Owner).Scoring == None) && (PlayerPawn(Owner).ScoringType != None) )
-        PlayerPawn(Owner).Scoring = Spawn(PlayerPawn(Owner).ScoringType, PlayerPawn(Owner));
-      if ( PlayerPawn(Owner).Scoring != None )
-      { 
-        PlayerOwner.Scoring.OwnerHUD = self;
-        PlayerPawn(Owner).Scoring.ShowScores(Canvas);
-        DrawTypingPrompt(Canvas, playerpawn(owner).player.Console); //allow typing to show.
-        Drawunrealmessages(canvas); //show events, needed at end of game.
-        return;
-      }
-    }
-    else if ( (PawnOwner.Weapon != None) && (Level.LevelAction == LEVACT_None) )
-    {
-      Canvas.Font = Font'WhiteFont';
-      PawnOwner.Weapon.PostRender(Canvas);
-          Canvas.Style = ERenderStyle.STY_Normal;
-    Canvas.DrawColor.r = 255;     //reset
-  Canvas.DrawColor.g = 255;
-  Canvas.DrawColor.b = 255;
-    Canvas.Font = Font'WhiteFont';
-      if ( !PawnOwner.Weapon.bOwnsCrossHair )
-        DrawCrossHair(Canvas, 0.5 * Canvas.ClipX - 8, 0.5 * Canvas.ClipY - 8);
-    }
-
-    Canvas.Font = Font'WhiteFont';
-    Canvas.StrLen("TEST", XL, YL);
-    YPos = FMax(YL*4 + 8, 70);
-     if ( bDrawFaceArea ){
-  facemsgset=Ypos+7+faceareaoffset;
-  //log ("facemsg set is set to "$facemsgset$".  Ypos is set to "$ypos$".   The face to be drawn is "$facetexture);
-    DrawTalkFace( Canvas, YPos ); }
-  else                {
-  facemsgset=0; //ensure it is 0.......
-  faceareaoffset=-64;}
-    if ( PlayerPawn(Owner).ProgressTimeOut > Level.TimeSeconds )
-      DisplayProgressMessage(Canvas);
-
-  }
-  else if ( PlayerPawn(Owner).bShowScores )
-    {
-      if ( (PlayerPawn(Owner).Scoring == None) && (PlayerPawn(Owner).ScoringType != None) )
-        PlayerPawn(Owner).Scoring = Spawn(PlayerPawn(Owner).ScoringType, PlayerPawn(Owner));
-      if ( PlayerPawn(Owner).Scoring != None )
-      { 
-        PlayerOwner.Scoring.OwnerHUD = self;
-        PlayerPawn(Owner).Scoring.ShowScores(Canvas);
-      }
-      return;
+     if ( PlayerPawn(Owner).bShowScores )
+     {
+       if ( ( PlayerPawn(Owner).Weapon != None ) && ( !PlayerPawn(Owner).Weapon.bOwnsCrossHair ) )
+         DrawCrossHair(Canvas, 0.5 * Canvas.ClipX - 8, 0.5 * Canvas.ClipY - 8);
+       if ( (PlayerPawn(Owner).Scoring == None) && (PlayerPawn(Owner).ScoringType != None) )
+         PlayerPawn(Owner).Scoring = Spawn(PlayerPawn(Owner).ScoringType, PlayerPawn(Owner));
+       if ( PlayerPawn(Owner).Scoring != None )
+       { 
+         PlayerOwner.Scoring.OwnerHUD = self;
+         PlayerPawn(Owner).Scoring.ShowScores(Canvas);
+         DrawTypingPrompt(Canvas, playerpawn(owner).player.Console); //allow typing to show.
+         Drawunrealmessages(canvas); //show events, needed at end of game.
+         return;
+       }
+	 }
+     else if ( (PawnOwner.Weapon != None) && (Level.LevelAction == LEVACT_None) )
+     {
+	   Canvas.Font = MyFonts.GetMediumFont(Canvas.ClipX);
+       PawnOwner.Weapon.PostRender(Canvas);
+       Canvas.Style = ERenderStyle.STY_Normal;
+       Canvas.DrawColor.r = 255;     //reset
+       Canvas.DrawColor.g = 255;
+       Canvas.DrawColor.b = 255;
+	   Canvas.Font = MyFonts.GetMediumFont(Canvas.ClipX);  
+       if ( !PawnOwner.Weapon.bOwnsCrossHair )
+         DrawCrossHair(Canvas, 0.5 * Canvas.ClipX - 8, 0.5 * Canvas.ClipY - 8);
+     }
+	
+	 Canvas.Font = MyFonts.GetMediumFont(Canvas.ClipX);  
+     Canvas.StrLen("TEST", XL, YL);
+     YPos = FMax(YL*4 + 8, 70);
+     if ( bDrawFaceArea )
+	 {
+	   facemsgset=Ypos+7+faceareaoffset;
+       //log ("facemsg set is set to "$facemsgset$".  Ypos is set to "$ypos$".   The face to be drawn is "$facetexture);
+       DrawTalkFace( Canvas, YPos );
+	 }
+     else
+	 {
+       facemsgset=0; //ensure it is 0.......
+       faceareaoffset=-64;
+     }
+     if ( PlayerPawn(Owner).ProgressTimeOut > Level.TimeSeconds )
+       DisplayProgressMessage(Canvas);
    }
-  // Master localized message control loop.
+   else if ( PlayerPawn(Owner).bShowScores )
+   {
+     if ( (PlayerPawn(Owner).Scoring == None) && (PlayerPawn(Owner).ScoringType != None) )
+       PlayerPawn(Owner).Scoring = Spawn(PlayerPawn(Owner).ScoringType, PlayerPawn(Owner));
+     if ( PlayerPawn(Owner).Scoring != None )
+     { 
+       PlayerOwner.Scoring.OwnerHUD = self;
+       PlayerPawn(Owner).Scoring.ShowScores(Canvas);
+     }
+     return;
+   }
+   // Master localized message control loop.
     for (i=0; i<10; i++)
     {
       if (LocalMessages[i].Message != None)
@@ -197,7 +254,7 @@ local int i;
             Canvas.Font = LocalMessages[i].StringFont;
             Canvas.DrawColor = LocalMessages[i].DrawColor * (FadeValue/LocalMessages[i].LifeTime);
             Canvas.SetPos( 0.5 * (Canvas.ClipX - LocalMessages[i].XL), LocalMessages[i].YPos );
-            Canvas.DrawText( LocalMessages[i].StringMessage, False );
+			Canvas.DrawText( string(LocalMessages[i].Message)@LocalMessages[i].StringMessage, False );
           }
         } 
         else 
@@ -216,7 +273,7 @@ local int i;
           Canvas.Style = ERenderStyle.STY_Normal;
           Canvas.DrawColor = LocalMessages[i].DrawColor;
           Canvas.SetPos( 0.5 * (Canvas.ClipX - LocalMessages[i].XL), LocalMessages[i].YPos );
-          Canvas.DrawText( LocalMessages[i].StringMessage, False );
+          Canvas.DrawText( string(LocalMessages[i].Message)@LocalMessages[i].StringMessage, False );
         }
       }
     }
@@ -224,46 +281,51 @@ local int i;
     Canvas.DrawColor.r = 255;     //reset
   Canvas.DrawColor.g = 255;
   Canvas.DrawColor.b = 255;
-  Canvas.Font = Font'WhiteFont';
+  Canvas.Font = MyFonts.GetMediumFont(Canvas.ClipX);
   }
   if (!nohud){
   if (HudMode==5) 
   {
-    DrawInventory(Canvas, Canvas.ClipX-96, 0,False);    
+    DrawInventory(Canvas, Canvas.ClipX - 96 * Scale, 0,False);    
     Return;
   }
   if (Canvas.ClipX<320) HudMode = 4;
 
+  TmpFont = Canvas.Font;
+  Canvas.Font = MyFonts.GetBigFont(Canvas.ClipX);
+  Canvas.StrLen("A", XL, YL);
+  Canvas.Font = TmpFont;
+
   // Draw Armor
-  if (HudMode<2) DrawArmor(Canvas, 0, 0,False);
-  else if (HudMode==3 || HudMode==2) DrawArmor(Canvas, 0, Canvas.ClipY-32,False);
-  else if (HudMode==4) DrawArmor(Canvas, Canvas.ClipX-64, Canvas.ClipY-64,True);
+  if (HudMode<2) DrawArmor(Canvas, 0, 0, False);
+  else if (HudMode==3 || HudMode==2) DrawArmor(Canvas, 0, Canvas.ClipY-Max(YL, 32 * Scale),False);
+  else if (HudMode==4) DrawArmor(Canvas, Canvas.ClipX-64*Scale, Canvas.ClipY-Max(YL * 2, 64 * Scale),True);
   
   // Draw Ammo
-  if (HudMode!=4) DrawAmmo(Canvas, Canvas.ClipX-48-64, Canvas.ClipY-32);
-  else DrawAmmo(Canvas, Canvas.ClipX-48, Canvas.ClipY-32);
+  if (HudMode!=4) DrawAmmo(Canvas, Canvas.ClipX-(32+64)*Scale, Canvas.ClipY-Max(YL, 32*Scale));
+  else DrawAmmo(Canvas, Canvas.ClipX-32*Scale, Canvas.ClipY-Max(YL, 32*Scale));
   
   // Draw Health
-  if (HudMode<2) DrawHealth(Canvas, 0, Canvas.ClipY-32);
-  else if (HudMode==3||HudMode==2) DrawHealth(Canvas, Canvas.ClipX-128, Canvas.ClipY-32);
-  else if (HudMode==4) DrawHealth(Canvas, Canvas.ClipX-64, Canvas.ClipY-32);
+  if (HudMode<2) DrawHealth(Canvas, 0, Canvas.ClipY-Max(YL, 32*Scale));
+  else if (HudMode==3||HudMode==2) DrawHealth(Canvas, Canvas.ClipX-128*Scale, Canvas.ClipY-Max(YL, 32*Scale));
+  else if (HudMode==4) DrawHealth(Canvas, Canvas.ClipX-64*Scale, Canvas.ClipY-Max(YL, 32*Scale));
     
   // Display Inventory
-  if (HudMode<2) DrawInventory(Canvas, Canvas.ClipX-96, 0,False);
-  else if (HudMode==3) DrawInventory(Canvas, Canvas.ClipX-96, Canvas.ClipY-64,False);
-  else if (HudMode==4) DrawInventory(Canvas, Canvas.ClipX-64, Canvas.ClipY-64,True);
-  else if (HudMode==2) DrawInventory(Canvas, Canvas.ClipX/2-64, Canvas.ClipY-32,False);  
+  if (HudMode<2) DrawInventory(Canvas, Canvas.ClipX - 96 * Scale,0,False);
+  else if (HudMode==3) DrawInventory(Canvas, Canvas.ClipX-96*Scale, Canvas.ClipY-Max(YL, 32*Scale)-32*Scale,False);
+  else if (HudMode==4) DrawInventory(Canvas, Canvas.ClipX-64*Scale, Canvas.ClipY-Max(YL, 32*Scale)-32*Scale,True);
+  else if (HudMode==2) DrawInventory(Canvas, Canvas.ClipX/2-64*Scale, Canvas.ClipY-Max(YL, 32*Scale),False);  
 
   // Display Frag count (redone to allow in SP....
   if (!self.isa('oldskoolhud')||showfrag)
   {
-    if (HudMode<3) DrawFragCount(Canvas, Canvas.ClipX-32,Canvas.ClipY-64);
-    else if (HudMode==3) DrawFragCount(Canvas, 0,Canvas.ClipY-64);
-    else if (HudMode==4) DrawFragCount(Canvas, 0,Canvas.ClipY-32);
+    if (HudMode<3) DrawFragCount(Canvas, Canvas.ClipX-32*Scale,Canvas.ClipY-Max(YL, 32*Scale)-32*Scale);
+    else if (HudMode==3) DrawFragCount(Canvas, 0,Canvas.ClipY-Max(YL, 32*Scale)-32*Scale);
+    else if (HudMode==4) DrawFragCount(Canvas, 0,Canvas.ClipY-32*Scale);
   }
 
   // Display Identification Info
-  DrawIdentifyInfo(Canvas, 0, Canvas.ClipY - 64.0);
+  DrawIdentifyInfo(Canvas, 0, Canvas.ClipY-YL*2);
   }
   // Endgame h4x.....
   if (level.title~="Ending Sequence"){
@@ -281,7 +343,7 @@ local int i;
       }
       HudSetup(Canvas);
       Canvas.bCenter = false;
-      Canvas.Font = Canvas.MedFont;
+      Canvas.Font = MyFonts.GetMediumFont(Canvas.ClipX);
       TempX = Canvas.ClipX;
       TempY = Canvas.ClipY;  
       if (MessageNumber < 7){
@@ -329,16 +391,31 @@ local int i;
 }
 simulated function HUDSetup(canvas canvas)
 {
-Super.Hudsetup(canvas);
-bResChanged = (Canvas.ClipX != OldClipX);
-  OldClipX = Canvas.ClipX;
-Playerowner=Playerpawn(Owner);
-  if ( PlayerOwner.ViewTarget == None )            //set pawnowner stuff....
-    PawnOwner = PlayerOwner;
-  else if ( PlayerOwner.ViewTarget.bIsPawn )
-    PawnOwner = Pawn(PlayerOwner.ViewTarget);
-  else 
-    PawnOwner = PlayerOwner;}
+    local string Tmp;
+	
+    Super.Hudsetup(canvas);
+    bResChanged = (Canvas.ClipX != OldClipX);
+    OldClipX = Canvas.ClipX;
+    Playerowner=Playerpawn(Owner);
+    if ( PlayerOwner.ViewTarget == None )            //set pawnowner stuff....
+        PawnOwner = PlayerOwner;
+    else if ( PlayerOwner.ViewTarget.bIsPawn )
+        PawnOwner = Pawn(PlayerOwner.ViewTarget);
+    else 
+        PawnOwner = PlayerOwner;
+
+    // OldUnreal scaling
+	Tmp = PlayerOwner.ConsoleCommand("get botpack.challengehud hudscale");
+	if (Tmp != "")
+        HUDScale = float(Tmp);
+	else
+	    HUDScale = 1.0;
+    Scale = (HUDScale * Canvas.ClipX) / 1280.0;
+
+	Canvas.SmallFont = MyFonts.GetSmallFont(Canvas.ClipX);
+	Canvas.MedFont = MyFonts.GetMediumFont(Canvas.ClipX);
+	Canvas.BigFont = MyFonts.GetBigFont(Canvas.ClipX);	
+}
 function DrawTalkFace(Canvas Canvas, float YPos)
 {
   if ( Hudmode<5 )
@@ -368,35 +445,76 @@ exec function ShrinkHUD()
   hudmode++;
   saveconfig();
 }
+
+simulated function DrawTeamGameSynopsis(Canvas Canvas)
+{
+	local TeamInfo TI;
+	local float XL, YL;
+
+	foreach AllActors(class'TeamInfo', TI)
+	{
+		if (TI.Size > 0)
+		{
+			Canvas.Font = MyFonts.GetMediumFont(Canvas.ClipX);
+			Canvas.DrawColor = TeamColor[TI.TeamIndex]; 
+			Canvas.StrLen(TeamName[TI.TeamIndex], XL, YL);
+			Canvas.SetPos(0, Canvas.ClipY - 128 + 16 * TI.TeamIndex);
+			Canvas.DrawText(TeamName[TI.TeamIndex], false);
+			Canvas.SetPos(XL, Canvas.ClipY - 128 + 16 * TI.TeamIndex);
+			Canvas.DrawText(int(TI.Score), false);
+		}
+	}
+
+	Canvas.DrawColor.R = 255;
+	Canvas.DrawColor.G = 255;
+	Canvas.DrawColor.B = 255;
+}
+
+simulated function DrawFragCountInternal(Canvas Canvas, int X, int Y, bool bRenderFragText, optional int FragCount)
+{
+  local color OldCol;
+  local float XL, YL;
+  
+  Canvas.SetPos(X,Y);
+  OldCol = Canvas.DrawColor;
+  Canvas.DrawColor = WhiteColor;
+  if (realicons)
+  {
+	Canvas.DrawIcon(Texture'Realskull', Scale);
+  	Canvas.DrawColor = RedColor;
+  }
+  else
+  {
+	Canvas.DrawIcon(Texture'IconSkull', Scale);
+	Canvas.DrawColor = GreenColor;
+  }
+	  
+  if (!bRenderFragText)
+  {
+    Canvas.CurX -= 19 * Scale;
+    Canvas.CurY += 23 * Scale;	
+    return;
+  }
+
+  // try to find a font that is small enough to render the entire frag text inside the icon
+  Canvas.Font = MyFonts.GetACompletelyUnreadableFont(Canvas.ClipX);
+  Canvas.StrLen(FragCount, XL, YL);
+  Canvas.CurX -= XL;
+  Canvas.CurY += Texture'IconSkull'.VSize * Scale - YL;
+
+  Canvas.DrawText(FragCount, False);
+  Canvas.DrawColor = OldCol;
+}
+
 //allow the realctf icon
 simulated function DrawFragCount(Canvas Canvas, int X, int Y)
 {
-  local color oldcol;
-  Canvas.SetPos(X,Y);
-  if (realicons) {
-  Canvas.DrawIcon(Texture'Realskull', 1.0);
-  oldcol=canvas.drawcolor;
-  canvas.drawcolor=redcolor;  }
+  if (PawnOwner.PlayerReplicationInfo == None)
+    DrawFragCountInternal(Canvas, X, Y, false);
   else
-  Canvas.DrawIcon(Texture'IconSkull', 1.0);  
-  Canvas.CurX -= 19;
-  Canvas.CurY += 23;
-  if ( PawnOwner.PlayerReplicationInfo == None )
-    return;
-  Canvas.Font = Font'TinyWhiteFont';
-  if (PawnOwner.PlayerReplicationInfo.Score<100)
-    Canvas.CurX+=6;
-  if (PawnOwner.PlayerReplicationInfo.Score<10)
-    Canvas.CurX+=6;  
-  if (PawnOwner.PlayerReplicationInfo.Score<0)
-    Canvas.CurX-=6;
-  if (PawnOwner.PlayerReplicationInfo.Score<-9)
-    Canvas.CurX-=6;
-  Canvas.DrawText(int(PawnOwner.PlayerReplicationInfo.Score),False);
-  if (realicons)
-  canvas.drawcolor=oldcol;
-        
+    DrawFragCountInternal(Canvas, X, Y, true, int(PawnOwner.PlayerReplicationInfo.Score));
 }
+
 //tick the faceareoffsets.......
 simulated function Tick(float DeltaTime)
 {
@@ -414,6 +532,55 @@ simulated function Tick(float DeltaTime)
 
 }
 
+simulated function DrawIdentifyInfo(canvas Canvas, float PosX, float PosY)
+{
+	local float XL, YL, XOffset;
+	local string Name;
+
+	if (!TraceIdentify(Canvas))
+		return;
+
+	Canvas.Font = MyFonts.GetMediumFont(Canvas.ClipX);
+	Canvas.Style = 3;
+
+	if(IdentifyTarget.IsA('PlayerPawn'))
+		if(PlayerPawn(IdentifyTarget).PlayerReplicationInfo.bFeigningDeath)
+			return;
+
+    Name = IdentifyTarget.PlayerReplicationInfo.PlayerName;
+//    if (Name == "")
+//        Name = string(IdentifyTarget.Class);
+
+	XOffset = 0.0;
+	Canvas.StrLen(IdentifyName$": "$Name, XL, YL);
+	XOffset = Canvas.ClipX/2 - XL/2;
+	Canvas.SetPos(XOffset, Canvas.ClipY - 54);
+
+	if(Name != "")
+	{
+		Canvas.DrawColor.R = 0;
+		Canvas.DrawColor.G = 160 * (IdentifyFadeTime / 3.0);
+		Canvas.DrawColor.B = 0;
+
+		Canvas.StrLen(IdentifyName$": ", XL, YL);
+		XOffset += XL;
+		Canvas.DrawText(IdentifyName$": ");
+		Canvas.SetPos(XOffset, Canvas.ClipY - 54);
+
+		Canvas.DrawColor.R = 0;
+		Canvas.DrawColor.G = 255 * (IdentifyFadeTime / 3.0);
+		Canvas.DrawColor.B = 0;
+
+		Canvas.StrLen(Name, XL, YL);
+		Canvas.DrawText(Name);
+	}
+
+	Canvas.Style = 1;
+	Canvas.DrawColor.R = 255;
+	Canvas.DrawColor.G = 255;
+	Canvas.DrawColor.B = 255;
+}
+
 //DO NOT USE ITERATEORS!!!!!!! THEY BAD!!!!!!!!!!!!!!!!
 simulated function DrawMOTD(Canvas Canvas)
 {
@@ -422,7 +589,7 @@ simulated function DrawMOTD(Canvas Canvas)
 
   if(Owner == None) return;
 
-  Canvas.Font = Font'WhiteFont';
+  Canvas.Font = MyFonts.GetMediumFont(Canvas.ClipX);
   Canvas.Style = 3;
 
   Canvas.DrawColor.R = MOTDFadeOutTime;
@@ -507,7 +674,7 @@ simulated function bool Draw1337MessageHeader(Canvas Canvas, somemessage ShortMe
 
   SetDrawColor(Canvas,Team,1);
   XOffset += ArmorOffset+facemsgset;
-  XOffset = DrawNextMessagePart(Canvas, strPlayerName$": ", XOffset, YPos);  
+//  XOffset = DrawNextMessagePart(Canvas, strPlayerName$": ", XOffset, YPos);  
   Canvas.SetPos(4 + XOffset, YPos);
 
   if (ShortMessage.Type == 'TeamSay') {
@@ -719,15 +886,18 @@ simulated function DrawInventory(Canvas Canvas, int X, int Y, bool bDrawOne)
   local bool bGotNext, bGotPrev, bGotSelected;
   local inventory Inv,Prev, Next, SelectedItem;
   local int TempX,TempY, HalfHUDX, HalfHUDY, AmmoIconSize, i;
+  local float IconY, TextY;
 
   if ( HudMode < 4 ) //then draw HalfHUD
   {
-    Canvas.Font = Font'TinyFont';
-    HalfHUDX = Canvas.ClipX-64;
-    HalfHUDY = Canvas.ClipY-32;
+    Canvas.Font = MyFonts.GetBigFont(Canvas.ClipX);
+	GetIconAndTextOffsets(Canvas, Texture'HalfHud', IconY, TextY);
+    Canvas.Font = MyFonts.GetSmallFont(Canvas.ClipX);
+    HalfHUDX = Canvas.ClipX-64*Scale;
+    HalfHUDY = Canvas.ClipY-32*Scale-IconY;
     Canvas.CurX = HalfHudX;
     Canvas.CurY = HalfHudY;
-    Canvas.DrawIcon(Texture'HalfHud', 1.0);  
+    Canvas.DrawIcon(Texture'HalfHud', Scale);  
   }
 
   if ( pawnOwner.Inventory==None) Return;
@@ -771,10 +941,10 @@ simulated function DrawInventory(Canvas Canvas, int X, int Y, bool bDrawOne)
 
     if ( (HudMode < 4) && (Inv.InventoryGroup>0) && (Weapon(Inv)!=None) ) 
     {
-      if (PawnOwner.Weapon == Inv) Canvas.Font = Font'TinyWhiteFont';
-      else Canvas.Font = Font'TinyFont';
-      Canvas.CurX = HalfHudX-3+Inv.InventoryGroup*6;
-      Canvas.CurY = HalfHudY+4;
+      if (PawnOwner.Weapon == Inv) Canvas.Font = MyFonts.GetStaticSmallestFont(Canvas.ClipX);
+      else Canvas.Font = MyFonts.GetStaticAReallySmallFont(Canvas.ClipX);
+      Canvas.CurX = HalfHudX-3*Scale+Inv.InventoryGroup*6*Scale;
+      Canvas.CurY = HalfHudY+4*Scale;
       if (Inv.InventoryGroup<10) Canvas.DrawText(Inv.InventoryGroup,False);
       else Canvas.DrawText("0",False);
     }
@@ -786,31 +956,32 @@ simulated function DrawInventory(Canvas Canvas, int X, int Y, bool bDrawOne)
       {
         if (Ammo(Inv).UsedInWeaponSlot[i]==1)
         {
-          Canvas.CurX = HalfHudX+3+i*6;
-          if (i==0) Canvas.CurX += 60;
-          Canvas.CurY = HalfHudY+11;
-          AmmoIconSize = 16.0*FMin(1.0,(float(Ammo(Inv).AmmoAmount)/float(Ammo(Inv).MaxAmmo)));
-          if (AmmoIconSize<8 && Ammo(Inv).AmmoAmount<10 && Ammo(Inv).AmmoAmount>0) 
+          Canvas.CurX = HalfHudX+3*Scale+i*6*Scale;
+          if (i==0) Canvas.CurX += 60*Scale;
+          Canvas.CurY = HalfHudY+11*Scale;
+          AmmoIconSize = 16.0*FMin(1.0,(float(Ammo(Inv).AmmoAmount)/float(Ammo(Inv).MaxAmmo)))*Scale;
+          if (AmmoIconSize<8*Scale && Ammo(Inv).AmmoAmount<10 && Ammo(Inv).AmmoAmount>0) 
           {
-            Canvas.CurX -= 6;      
-            Canvas.CurY += 5;
-            Canvas.Font = Font'TinyRedFont';
+            Canvas.CurX -= 6*Scale;      
+            Canvas.CurY += 5*Scale;
+			Canvas.DrawColor=RedColor;
+            Canvas.Font = MyFonts.GetStaticAReallySmallFont(Canvas.ClipX);
             Canvas.DrawText(Ammo(Inv).AmmoAmount,False);        
-            Canvas.CurY -= 12;
+            Canvas.CurY -= 12*Scale;
           }
-          Canvas.CurY += 19-AmmoIconSize;
-          Canvas.CurX -= 6;
+          Canvas.CurY += 19*Scale-AmmoIconSize;
+          Canvas.CurX -= 6*Scale;
           Canvas.DrawColor.g = 255;
           Canvas.DrawColor.r = 0;    
           Canvas.DrawColor.b = 0;          
-          if (AmmoIconSize<8) 
+          if (AmmoIconSize<8*Scale) 
           {
-            Canvas.DrawColor.r = 255-AmmoIconSize*30;
-            Canvas.DrawColor.g = AmmoIconSize*30+40;        
+            Canvas.DrawColor.r = 255-AmmoIconSize*30/Scale;
+            Canvas.DrawColor.g = AmmoIconSize*30/Scale+40;        
           }
           if (Ammo(Inv).AmmoAmount >0) 
           {
-            Canvas.DrawTile(Texture'HudGreenAmmo',4.0,AmmoIconSize,0,0,4.0,AmmoIconSize);    
+            Canvas.DrawTile(Texture'HudGreenAmmo',4.0*Scale,AmmoIconSize,0,0,4.0*Scale,AmmoIconSize);    
           }
           Canvas.DrawColor.g = 255;
           Canvas.DrawColor.r = 255;    
@@ -829,15 +1000,15 @@ simulated function DrawInventory(Canvas Canvas, int X, int Y, bool bDrawOne)
     if( Translator.bCurrentlyActivated )
     {
       Canvas.bCenter = false;
-      Canvas.Font = Canvas.MedFont;
+      Canvas.Font = MyFonts.GetMediumFont(Canvas.ClipX);
       TempX = Canvas.ClipX;
       TempY = Canvas.ClipY;
       CurrentMessage = Translator.NewMessage;
       Canvas.Style = 2;  
-      Canvas.SetPos(Canvas.ClipX/2-128, Canvas.ClipY/2-68);
-      Canvas.DrawIcon(texture'TranslatorHUD3', 1.0);
-      Canvas.SetOrigin(Canvas.ClipX/2-110,Canvas.ClipY/2-52);
-      Canvas.SetClip(225,110);
+      Canvas.SetPos(Canvas.ClipX/2-128*Scale, Canvas.ClipY/2-68*Scale);
+      Canvas.DrawIcon(texture'TranslatorHUD3', Scale);
+      Canvas.SetOrigin(Canvas.ClipX/2-110*Scale,Canvas.ClipY/2-52*Scale);
+      Canvas.SetClip(225*Scale,110*Scale);
       Canvas.SetPos(0,0);
       Canvas.Style = 1;  
       Canvas.DrawText(CurrentMessage, False);  
@@ -853,7 +1024,8 @@ simulated function DrawInventory(Canvas Canvas, int X, int Y, bool bDrawOne)
     return;
 
   if ( SelectedItem != None )
-  {  
+  {
+    Canvas.Font = MyFonts.GetStaticAReallySmallFont(Canvas.ClipX);
     Count++;
     if (Count>20) Count=0;
     
@@ -877,16 +1049,16 @@ simulated function DrawInventory(Canvas Canvas, int X, int Y, bool bDrawOne)
         Canvas.DrawColor.b = 0;    
         Canvas.DrawColor.g = 0;    
       }
-      if ( (Next==None) && (Prev==None) && !bDrawOne) DrawHudIcon(Canvas, X+64, Y, SelectedItem);
-      else DrawHudIcon(Canvas, X+32, Y, SelectedItem);    
+      if ( (Next==None) && (Prev==None) && !bDrawOne) DrawHudIcon(Canvas, X+64*Scale, Y, SelectedItem);
+      else DrawHudIcon(Canvas, X+32*Scale, Y, SelectedItem);    
       Canvas.Style = 2;
-      Canvas.CurX = X+32;
-      if ( (Next==None) && (Prev==None) && !bDrawOne ) Canvas.CurX = X+64;
+      Canvas.CurX = X+32*Scale;
+      if ( (Next==None) && (Prev==None) && !bDrawOne ) Canvas.CurX = X+64*Scale;
       Canvas.CurY = Y;
-      Canvas.DrawIcon(texture'IconSelection', 1.0);
+      Canvas.DrawIcon(texture'IconSelection', Scale);
       if ( (Pickup(SelectedItem) != None) 
         && Pickup(SelectedItem).bCanHaveMultipleCopies )
-        DrawNumberOf(Canvas,Pickup(SelectedItem).NumCopies,Canvas.CurX-32,Y);
+        DrawNumberOf(Canvas,Pickup(SelectedItem).NumCopies,Canvas.CurX-32*Scale,Y);
       Canvas.Style = 1;
       Canvas.DrawColor.b = 255;
       Canvas.DrawColor.g = 255;    
@@ -897,24 +1069,44 @@ simulated function DrawInventory(Canvas Canvas, int X, int Y, bool bDrawOne)
         Canvas.DrawColor.b = 0;    
         Canvas.DrawColor.g = 0;    
       }
-      DrawHudIcon(Canvas, X+64, Y, Next);
+      DrawHudIcon(Canvas, X+64*Scale, Y, Next);
       if ( (Pickup(Next) != None) && Pickup(Next).bCanHaveMultipleCopies )
-        DrawNumberOf(Canvas,Pickup(Next).NumCopies,Canvas.CurX-32,Y);
+        DrawNumberOf(Canvas,Pickup(Next).NumCopies,Canvas.CurX-32*Scale,Y);
       Canvas.DrawColor.b = 255;
       Canvas.DrawColor.g = 255;
     }
   }
 }
 
+simulated function DrawNumberOf(Canvas Canvas, int NumberOf, int X, int Y)
+{
+	local int TempX,TempY;
+	local color TmpColor;
+	
+	if (NumberOf<=0) Return;
+
+	Canvas.CurX = X + 14 * Scale;
+	Canvas.CurY = Y + 20 * Scale;
+	NumberOf++;
+	if (NumberOf<100) Canvas.CurX+=6 * Scale;
+	if (NumberOf<10) Canvas.CurX+=6 * Scale;
+	TmpColor = Canvas.DrawColor;
+	Canvas.DrawColor = RedColor;
+	Canvas.Font = MyFonts.GetStaticAReallySmallFont(Canvas.ClipX);
+	Canvas.DrawText(NumberOf,False);
+	Canvas.DrawColor = TmpColor;
+}
+
 simulated function DrawArmor(Canvas Canvas, int X, int Y, bool bDrawOne)
 {
-  Local int ArmorAmount,CurAbs;
-  Local inventory Inv,BestArmor;
-  Local float XL, YL;
+  Local int ArmorAmount, CurAbs;
+  Local inventory Inv, BestArmor;
+  Local float XL, YL, IconY, TextY;
+  local color TmpColor;
 
   ArmorAmount = 0;
   ArmorOffset = 0;
-  Canvas.Font = Canvas.LargeFont;
+  Canvas.Font = MyFonts.GetBigFont(Canvas.ClipX);
   Canvas.CurX = X;
   Canvas.CurY = Y;
   CurAbs=0;
@@ -928,8 +1120,9 @@ simulated function DrawArmor(Canvas Canvas, int X, int Y, bool bDrawOne)
       {
         if (!bDrawOne) 
         {
-          ArmorOffset += 32;
-          DrawHudIcon(Canvas, Canvas.CurX, Y, Inv);
+          ArmorOffset += 32 * Scale;
+		  GetInvIconAndTextOffsets(Canvas, Inv, IconY, TextY);
+          DrawHudIcon(Canvas, Canvas.CurX, Y + IconY, Inv);
           DrawIconValue(Canvas, Inv.Charge);            
         }
         else if (Inv.ArmorAbsorption>CurAbs) 
@@ -942,44 +1135,92 @@ simulated function DrawArmor(Canvas Canvas, int X, int Y, bool bDrawOne)
   }
   if (bDrawOne && BestArmor!=None) 
   {
-    DrawHudIcon(Canvas, Canvas.CurX, Y, BestArmor);
-    DrawIconValue(Canvas, BestArmor.Charge);    
+    GetInvIconAndTextOffsets(Canvas, Inv, IconY, TextY);  
+    DrawHudIcon(Canvas, Canvas.CurX, Y + IconY, BestArmor);
+    DrawIconValue(Canvas, BestArmor.Charge);
   }
-  Canvas.CurY = Y;
-  if (ArmorAmount>0 && HudMode==0) {
-    Canvas.StrLen(ArmorAmount,XL,YL);
+  Canvas.CurY = Y + TextY;
+  if (ArmorAmount>0 && HudMode==0)
+  {
+    TmpColor = Canvas.DrawColor;
+	Canvas.DrawColor = GreenColor;
+    Canvas.StrLen(ArmorAmount, XL, YL);
     ArmorOffset += XL;
-    Canvas.DrawText(ArmorAmount,False);  
+    Canvas.DrawText(ArmorAmount, False);
+	Canvas.DrawColor = TmpColor;
   }
 }
+
+// Draw the icons value in text on the icon
+//
+simulated function DrawIconValue(Canvas Canvas, int Amount)
+{
+	local int TempX,TempY;
+
+	if (HudMode==0 || HudMode==3) Return;
+
+	TempX = Canvas.CurX;
+	TempY = Canvas.CurY;
+	Canvas.CurX -= 20 * Scale;
+	Canvas.CurY -= 5 * Scale;
+	if (Amount<100) Canvas.CurX+=6 * Scale;
+	if (Amount<10) Canvas.CurX+=6 * Scale;	
+	Canvas.Font = MyFonts.GetStaticSmallestFont(Canvas.ClipX);
+	Canvas.DrawText(Amount,False);
+	Canvas.Font = MyFonts.GetBigFont(Canvas.ClipX);
+	Canvas.CurX = TempX;
+	Canvas.CurY = TempY;
+}
+
 simulated function DrawAmmo(Canvas Canvas, int X, int Y)
 {
   local texture foundicon;
+  local color TmpColor;
+  local float IconY, TextY, XL, YL;
+  
   if ( (PawnOwner.Weapon == None) || (PawnOwner.Weapon.AmmoType == None) )
     return;
-  Canvas.CurY = Y;
-  Canvas.CurX = X;
-  Canvas.Font = Canvas.LargeFont;
-  if (PawnOwner.Weapon.AmmoType.AmmoAmount<10) Canvas.Font = Font'LargeRedFont';
-  if (HudMode==0) {
-    if (PawnOwner.Weapon.AmmoType.AmmoAmount>=100) Canvas.CurX -= 16;
-    if (PawnOwner.Weapon.AmmoType.AmmoAmount>=10) Canvas.CurX -= 16;
+
+  Canvas.Font = MyFonts.GetBigFont(Canvas.ClipX);
+
+  GetInvIconAndTextOffsets(Canvas, PawnOwner.Weapon.AmmoType, IconY, TextY);
+
+  TmpColor = Canvas.DrawColor;  
+  if (PawnOwner.Weapon.AmmoType.AmmoAmount<10)
+	Canvas.DrawColor = RedColor;
+  else
+    Canvas.DrawColor = GreenColor;
+	
+  if (HudMode==0)
+  {
+    Canvas.StrLen(PawnOwner.Weapon.AmmoType.AmmoAmount, XL, YL);
+    Canvas.CurX = X - XL;
+    Canvas.CurY = Canvas.ClipY - YL - TextY;	
     Canvas.DrawText(PawnOwner.Weapon.AmmoType.AmmoAmount,False);
-    Canvas.CurY = Canvas.ClipY-32;
   }
-  else Canvas.CurX+=16;
+
+  Canvas.DrawColor = WhiteColor;
+  Canvas.CurX = X;
+  Canvas.CurY = Y + IconY;
   if (PawnOwner.Weapon.AmmoType.Icon!=None)
-  Canvas.DrawIcon(PawnOwner.Weapon.AmmoType.Icon, 1.0);
-  else{
-  foundicon=findicon(pawnowner.weapon.ammotype);
-  if (foundicon!=none)
-  Canvas.DrawIcon(foundicon,1.0); } //scan for icon.
-  Canvas.CurY += 29;
+  {
+    Canvas.DrawIcon(PawnOwner.Weapon.AmmoType.Icon, Scale);
+  }
+  else
+  {  
+    foundicon=findicon(pawnowner.weapon.ammotype);
+    if (foundicon!=none)
+      Canvas.DrawIcon(foundicon, Scale);
+  }
+  Canvas.CurX = X;
+  Canvas.CurY = Y + IconY + 29*Scale;
   DrawIconValue(Canvas, PawnOwner.Weapon.AmmoType.AmmoAmount);
-  Canvas.CurX = X+19;
-  Canvas.CurY = Y+29;
+  Canvas.CurX = X + 2*Scale;
+  Canvas.CurY = Y + IconY + 29*Scale;
   if (HudMode!=1 && HudMode!=2 && HudMode!=4)  Canvas.DrawTile(Texture'HudLine',
-    FMin(27.0*(float(PawnOwner.Weapon.AmmoType.AmmoAmount)/float(PawnOwner.Weapon.AmmoType.MaxAmmo)),27),2.0,0,0,32.0,2.0);
+    FMin(27.0*(float(PawnOwner.Weapon.AmmoType.AmmoAmount)/float(PawnOwner.Weapon.AmmoType.MaxAmmo)),27)*Scale,2.0*Scale,0,0,32.0*Scale,2.0*Scale);
+  Canvas.DrawColor = TmpColor;
+	
 }
 simulated function ChangeCrosshair(int d)    //wierd bug that caused challengehud crosshair to change to....
 {
@@ -989,32 +1230,141 @@ simulated function ChangeCrosshair(int d)    //wierd bug that caused challengehu
 }
 simulated function DrawCrossHair( canvas Canvas, int StartX, int StartY )
 {
-  if (olCrosshair>5) Return;
-  Canvas.SetPos(StartX, StartY );
-  Canvas.Style = 2;
-  if    (olCrosshair==0)   Canvas.DrawIcon(Texture'Crosshair1', 1.0);
-  else if (olCrosshair==1)   Canvas.DrawIcon(Texture'Crosshair2', 1.0);
-  else if (olCrosshair==2)   Canvas.DrawIcon(Texture'Crosshair3', 1.0);
-  else if (olCrosshair==3)   Canvas.DrawIcon(Texture'Crosshair4', 1.0);
-  else if (olCrosshair==4)   Canvas.DrawIcon(Texture'Crosshair5', 1.0);
-  else if (olCrosshair==5)   Canvas.DrawIcon(Texture'Crosshair7', 1.0);
-  Canvas.Style = 1;  
+	local float XScale, PickDiff;
+	local float XLength, YLength;
+	local texture T;
+
+    if (olCrosshair>5) Return;
+
+    /*
+    Canvas.SetPos(StartX, StartY );
+    Canvas.Style = 2;
+    if    (olCrosshair==0)   Canvas.DrawIcon(Texture'Crosshair1', 1.0);
+    else if (olCrosshair==1)   Canvas.DrawIcon(Texture'Crosshair2', 1.0);
+    else if (olCrosshair==2)   Canvas.DrawIcon(Texture'Crosshair3', 1.0);
+    else if (olCrosshair==3)   Canvas.DrawIcon(Texture'Crosshair4', 1.0);
+    else if (olCrosshair==4)   Canvas.DrawIcon(Texture'Crosshair5', 1.0);
+    else if (olCrosshair==5)   Canvas.DrawIcon(Texture'Crosshair7', 1.0);
+    Canvas.Style = 1;
+    */
+
+	// TODO: Use UT crosshair?
+    if    (olCrosshair==0)   T = Texture'Crosshair1';
+    else if (olCrosshair==1)   T = Texture'Crosshair2';
+    else if (olCrosshair==2)   T = Texture'Crosshair3';
+    else if (olCrosshair==3)   T = Texture'Crosshair4';
+    else if (olCrosshair==4)   T = Texture'Crosshair5';
+    else if (olCrosshair==5)   T = Texture'Crosshair7';
+
+	if (class'ChallengeHUD'.default.bAutoCrosshairScale)
+	{
+		if ( Canvas.ClipX < 512 )
+		    XScale = 0.5;
+		else
+			XScale = Clamp(int(0.1 + Canvas.ClipX/640.0), 1, 2);
+	}
+	else
+	{
+		XScale = class'ChallengeHUD'.default.CrosshairScale;
+	}
+
+	XLength = XScale * T.USize;
+	YLength = XScale * T.VSize;
+
+	Canvas.bNoSmooth = !class'ChallengeHUD'.default.bSmoothCrosshair;
+	if ( class'ChallengeHUD'.default.bAlwaysCenterCrosshair || (PlayerOwner.Handedness != 1 && PlayerOwner.HandedNess != -1) )
+		Canvas.SetPos(0.5 * (Canvas.ClipX - XLength), 0.5 * (Canvas.ClipY - YLength));
+	else if ( class'ChallengeHUD'.default.PlayerOwner.Handedness == -1 )
+		Canvas.SetPos(0.503 * (Canvas.ClipX - XLength), 0.504 * (Canvas.ClipY - YLength));
+	else if ( class'ChallengeHUD'.default.PlayerOwner.Handedness == 1 )
+		Canvas.SetPos(0.497 * (Canvas.ClipX - XLength), 0.496 * (Canvas.ClipY - YLength));
+
+    if (class'ChallengeHUD'.default.bTranslucentCrosshair)
+        Canvas.Style = ERenderStyle.STY_Translucent;
+	else
+	    Canvas.Style = ERenderStyle.STY_Normal;
+	Canvas.DrawColor = 15 * class'ChallengeHUD'.default.CrosshairColor;
+
+	Canvas.DrawTile(T, XLength, YLength, 0, 0, T.USize, T.VSize);
+	Canvas.bNoSmooth = True;
+	Canvas.Style = Style;
 }
+
+simulated function DisplayProgressMessage( canvas Canvas )
+{
+	local int i;
+	local float YOffset, XL, YL;
+
+	Canvas.DrawColor.R = 255;
+	Canvas.DrawColor.G = 255;
+	Canvas.DrawColor.B = 255;
+	Canvas.bCenter = true;
+	Canvas.Font = MyFonts.GetMediumFont(Canvas.ClipX);
+	YOffset = 0;
+	Canvas.StrLen("TEST", XL, YL);
+	for (i=0; i<8; i++)
+	{
+		Canvas.SetPos(0, 0.25 * Canvas.ClipY + YOffset);
+		Canvas.DrawColor = PlayerPawn(Owner).ProgressColor[i];
+		Canvas.DrawText(PlayerPawn(Owner).ProgressMessage[i], false);
+		YOffset += YL + 1;
+	}
+	Canvas.bCenter = false;
+	Canvas.DrawColor.R = 255;
+	Canvas.DrawColor.G = 255;
+	Canvas.DrawColor.B = 255;
+}
+
+simulated function DisplayMenu( canvas Canvas )
+{
+	local float VersionW, VersionH;
+
+	if ( MainMenu == None )
+		CreateMenu();
+	if ( MainMenu != None )
+		MainMenu.DrawMenu(Canvas);
+
+	if ( MainMenu.Class == MainMenuType )
+	{
+		Canvas.bCenter = false;
+		Canvas.Font = MyFonts.GetMediumFont(Canvas.ClipX);
+		Canvas.Style = 1;
+		Canvas.StrLen(VersionMessage@Level.EngineVersion, VersionW, VersionH);
+		Canvas.SetPos(Canvas.ClipX - VersionW - 4, 4);	
+		Canvas.DrawText(VersionMessage@Level.EngineVersion, False);	
+	}
+}
+
 simulated function DrawHealth(Canvas Canvas, int X, int Y)
 {
-  Canvas.CurY = Y;
+  local Color TmpColor;
+  local float IconY, TextY;
+  
+  Canvas.Font = MyFonts.GetBigFont(Canvas.ClipX);
+
+  GetIconAndTextOffsets(Canvas, Texture'IconHealth', IconY, TextY);
+  Canvas.CurY = Y + IconY;
   Canvas.CurX = X;  
-  Canvas.Font = Canvas.LargeFont;
-  if (PawnOwner.Health<25) Canvas.Font = Font'LargeRedFont';
-  Canvas.DrawIcon(Texture'IconHealth', 1.0);
-  Canvas.CurY += 29;  
+  
+  TmpColor = Canvas.DrawColor;
+  if (PawnOwner.Health<25) Canvas.DrawColor = RedColor;
+  Canvas.DrawIcon(Texture'IconHealth', Scale);
+
+  Canvas.CurY = Y + IconY + 29 * Scale;  
   DrawIconValue(Canvas, Max(0,PawnOwner.Health));
-  Canvas.CurY -= 29;    
-  if (HudMode==0) Canvas.DrawText(Max(0,PawnOwner.Health),False);
-  Canvas.CurY = Y+29;    
-  Canvas.CurX = X+2;
+  if (HudMode==0)
+  {
+    Canvas.CurY = Y + TextY;
+	if (PawnOwner.Health>=25)
+	  Canvas.DrawColor = GreenColor;
+    Canvas.DrawText(Max(0,PawnOwner.Health),False);
+  }
+  Canvas.CurY = Y + IconY + 29 * Scale;    
+  Canvas.CurX = X + 2 * Scale;
   if (HudMode!=1 && HudMode!=2 && HudMode!=4) 
-    Canvas.DrawTile(Texture'HudLine',FMin(27.0*(float(PawnOwner.Health)/float(PawnOwner.Default.Health)),27),2.0,0,0,32.0,2.0);
+    Canvas.DrawTile(Texture'HudLine', FMin(27.0*(float(PawnOwner.Health)/float(PawnOwner.Default.Health)),27) * Scale, 2.0 * Scale , 0, 0, 32.0 * Scale, 2.0 * Scale);
+  Canvas.CurY = Y;
+  Canvas.DrawColor = TmpColor;
 }
 
 //read PRI face
@@ -1059,7 +1409,8 @@ simulated function drawunrealmessages(canvas canvas){   //for unreal style criti
   local inventory Inv;
   Console = PlayerPawn(Owner).Player.Console;
 
-  Canvas.Font = Font'WhiteFont';
+  Canvas.Font = MyFonts.GetMediumFont(Canvas.ClipX);
+  Canvas.StrLen("TEST", XL, YL);
 
   if ( !Console.Viewport.Actor.bShowMenu )
     DrawTypingPrompt(Canvas, Console);
@@ -1075,7 +1426,7 @@ simulated function drawunrealmessages(canvas canvas){   //for unreal style criti
       Canvas.DrawColor.r = PickupColor;
       Canvas.DrawColor.g = PickupColor;
       Canvas.DrawColor.b = PickupColor;
-      Canvas.SetPos(4, Console.FrameY - 44);
+      Canvas.SetPos(4, Console.FrameY - 4 - YL);
       Canvas.DrawText( currentpickup.contents, true );
       Canvas.bCenter = false;
       Canvas.Style = ERenderStyle.STY_Normal;
@@ -1087,7 +1438,7 @@ simulated function drawunrealmessages(canvas canvas){   //for unreal style criti
     Canvas.DrawColor.b = 255;
     Canvas.DrawColor.r = 0;
     Canvas.DrawColor.g = 128;
-Canvas.SetPos(0, Console.FrameY/2 - 32);
+Canvas.SetPos(0, Console.FrameY/2 - 12 - YL/2);
     if (translator==none||!translator.bcurrentlyactivated)  //don't overwrite translator.
     canvas.DrawText( criticalmessage.contents, true );
     Canvas.bCenter = false;
@@ -1096,7 +1447,6 @@ Canvas.SetPos(0, Console.FrameY/2 - 32);
   {
     if (shortmessages[i].contents!=""&&shortmessages[i].lifetime>=level.timeseconds) //thx to setup order this always works :P
     {
-    Canvas.StrLen("TEST", XL, YL );
     YPos = 2 + (10 * J) + (10 * ExtraSpace);
     if ( !Draw1337MessageHeader(Canvas, ShortMessages[I], YPos) )
         {
@@ -1127,25 +1477,48 @@ function CopyolMessage(out somemessage M1, somemessage M2)  //copying.
   M1.pri = M2.pri;
   m1.type = m2.type;
 }
+
+simulated function DrawTypingPrompt( canvas Canvas, console Console )
+{
+	local string TypingPrompt;
+	local float XL, YL;
+
+	if ( Console.bTyping )
+	{
+		Canvas.DrawColor.r = 0;
+		Canvas.DrawColor.g = 255;
+		Canvas.DrawColor.b = 0;	
+		TypingPrompt = "(> "$Console.TypedStr$"_";
+		Canvas.Font = MyFonts.GetMediumFont(Canvas.ClipX);
+		Canvas.StrLen( TypingPrompt, XL, YL );
+		Canvas.SetPos( 2, Console.FrameY - Console.ConsoleLines - YL - 1 );
+		Canvas.DrawText( TypingPrompt, false );
+	}
+}
+
 simulated function DrawHudIcon(Canvas Canvas, int X, int Y, Inventory Item)     //modified so it can find icons.
 {
-  Local int Width;
+  local int Width;
   local texture icon;
+  
   icon=item.icon;
-  if (Icon==None){
-  icon=findicon(item);
-  if (icon==none) return;
+  if (Icon==None)
+  {
+    icon=findicon(item);
+    if (icon==none) return;
   }
+  
   Width = Canvas.CurX;
   Canvas.CurX = X;
   Canvas.CurY = Y;
-  Canvas.DrawIcon(Item.Icon, 1.0);
-  Canvas.CurX -= 30;
-  Canvas.CurY += 28;
+  Canvas.DrawIcon(Item.Icon, Scale);
+  Canvas.CurX -= Item.Icon.USize * Scale - 2; // was 30
+  Canvas.CurY += Item.Icon.VSize * Scale - 4; // was 28
   if ((HudMode!=2 && HudMode!=4 && HudMode!=1) || !Item.bIsAnArmor)
-    Canvas.DrawTile(Texture'HudLine',fMin(27.0,27.0*(float(Item.Charge)/float(Item.Default.Charge))),2.0,0,0,32.0,2.0);
-  Canvas.CurX = Width + 32;
+    Canvas.DrawTile(Texture'HudLine', fMin(27.0,27.0*(float(Item.Charge)/float(Item.Default.Charge))) * Scale, 2.0 * Scale , 0, 0, 32.0 * Scale, 2.0 * Scale);
+  Canvas.CurX = Width + Item.Icon.USize * Scale;
 }
+
 simulated function texture findicon(inventory inv){    //try to get inv based on botpack inv.
 if (inv.isa('miniammo'))
 return Texture'UnrealShare.Icons.I_ShellAmmo';

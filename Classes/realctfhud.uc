@@ -72,10 +72,11 @@ simulated function DrawFlag(Canvas Canvas, int X, int Y, int teamindex)
   // Draw team score
   Canvas.CurX -= 25;
   Canvas.CurY += 23;
-  Canvas.Font = Font'TinyWhiteFont';
+  Canvas.Font = MyFonts.GetSmallFont(Canvas.ClipX);
   GRI = TournamentGameReplicationInfo(PlayerOwner.GameReplicationInfo);
   TI = GRI.Teams[teamindex];
   iScore = int(ti.Score);
+  // TODO: Scale CurX
   if (iScore < 1000) Canvas.CurX+=6;
   if (iScore < 100) Canvas.CurX+=6;
   if (iScore < 10) Canvas.CurX+=6;  
@@ -89,7 +90,7 @@ simulated function DrawFlag(Canvas Canvas, int X, int Y, int teamindex)
     else //client-side replication.  I have to go through the entire PRIs to find it :(
     pri = findflagholder(flag);
     if (pri != none) {
-      Canvas.Font = Font'WhiteFont';
+      Canvas.Font = MyFonts.GetMediumFont(Canvas.ClipX);
       Canvas.StrLen(pri.PlayerName,fWidth,fHeight);
       if (X == 0) {
         Canvas.CurX = X + 34;

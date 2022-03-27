@@ -5,6 +5,9 @@
 
 class oldskoolTeamScoreBoard expands UnrealTeamScoreBoard;
 var TournamentGameReplicationInfo OwnerGame;
+
+var bool bCheckedRegFont;
+
 function ShowScores( canvas Canvas )
 {
   local PlayerReplicationInfo PRI;
@@ -12,7 +15,15 @@ function ShowScores( canvas Canvas )
   local int LoopCountTeam[4];
   local float XL, YL, YOffset;
   local TeamInfo TI;
-  OwnerGame = TournamentGameReplicationInfo(PlayerPawn(Owner).GameReplicationInfo); 
+  OwnerGame = TournamentGameReplicationInfo(PlayerPawn(Owner).GameReplicationInfo);
+
+  if (!bCheckedRegFont && oldskoolbasehud(OwnerHUD) != None)
+  {
+    bCheckedRegFont = true;
+	if (RegFont == Font'WhiteFont')
+	  RegFont = oldskoolbasehud(OwnerHUD).MyFonts.GetMediumFont(Canvas.ClipX);
+  }
+
   Canvas.Font = RegFont;
 
   // Header

@@ -78,7 +78,7 @@ simulated function bool SpecialIdentify(Canvas Canvas, Actor Other )    //never 
   if ( !Other.IsA('FortStandard') )
     return false;
 
-  Canvas.Font = Font'WhiteFont';
+  Canvas.Font = MyFonts.GetMediumFont(Canvas.ClipX);
   Canvas.DrawColor = RedColor * IdentifyFadeTime * 0.333;
   Canvas.StrLen(class'botpack.AssaultHUD'.default.IdentifyAssault, XL, YL);
   Canvas.SetPos(Canvas.ClipX/2 - XL/2, Canvas.ClipY - 74);

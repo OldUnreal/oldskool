@@ -26,7 +26,7 @@ simulated function DrawTeamGameSynopsis(Canvas Canvas)
     Ti=GRI.Teams[i];
     if (TI.Size > 0)
     {
-      Canvas.Font = Font'WhiteFont';
+      Canvas.Font = MyFonts.GetMediumFont(Canvas.ClipX);
       Canvas.DrawColor = TeamColor[TI.TeamIndex]; 
       Canvas.StrLen(TeamName[TI.TeamIndex], XL, YL);
       Canvas.SetPos(0, Canvas.ClipY - 128 + 16 * TI.TeamIndex);
@@ -127,10 +127,10 @@ final simulated function DrawSkull(Canvas Canvas, int X, int Y, texture SkullTex
   local int iScore;
 
   Canvas.SetPos(X,Y);
-  Canvas.DrawIcon(SkullTexture, 1.0);  
-  Canvas.CurX -= 19;
-  Canvas.CurY += 23;
-  Canvas.Font = Font'TinyWhiteFont';  
+  Canvas.DrawIcon(SkullTexture, Scale);  
+  Canvas.CurX -= 19 * Scale;
+  Canvas.CurY += 23 * Scale;
+  Canvas.Font = MyFonts.GetSmallFont(Canvas.ClipX);
 
   iScore = 0;
   if (Owner.IsA('playerPawn')) {
@@ -138,6 +138,7 @@ final simulated function DrawSkull(Canvas Canvas, int X, int Y, texture SkullTex
       iScore = PawnOwner.PlayerReplicationInfo.Score;
     }
   }
+  // TODO: Scale CurX
   if (iScore<100) Canvas.CurX+=6;
   if (iScore<10) Canvas.CurX+=6;  
   if (iScore<0) Canvas.CurX-=6;
@@ -159,7 +160,7 @@ simulated function DrawIdentifyInfo(canvas Canvas, float PosX, float PosY)
   if (!TraceIdentify(Canvas))
     return;
 
-  Canvas.Font = Font'WhiteFont';
+  Canvas.Font = MyFonts.GetMediumFont(Canvas.ClipX);
   Canvas.Style = 3;
 
   XOffset = 0.0;

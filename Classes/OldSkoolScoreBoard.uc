@@ -7,11 +7,23 @@ class OldSkoolScoreBoard expands ScoreBoard;
 
 var string difficulties[4];
 
+// OldUnreal Scaling
+var bool bCheckedRegFont;
+var float RowHeight;
+
 function ShowScores( canvas Canvas )
 {
   local int i, row;
   local color Yellow, Red, White;
   local scorekeeper scoreholder;
+  local float TmpX;
+
+  if (!bCheckedRegFont && oldskoolbasehud(OwnerHUD) != None)
+  {
+    bCheckedRegFont = true;
+	if (RegFont == Font'WhiteFont')
+	  RegFont = oldskoolbasehud(OwnerHUD).MyFonts.GetMediumFont(Canvas.ClipX);
+  }
 
   scoreholder = scorekeeper(Instigator.FindInventoryType(class 'scorekeeper'));
 
@@ -33,7 +45,8 @@ function ShowScores( canvas Canvas )
     Red.A = 200;
 
     // Display the scoreboard.
-    Canvas.Font = Canvas.MedFont;
+    Canvas.Font = oldskoolbasehud(OwnerHUD).MyFonts.GetMediumFont(Canvas.ClipX);
+    Canvas.StrLen("A", TmpX, RowHeight);
     Canvas.DrawColor = Red;
     
     Canvas.SetPos(0.2 * Canvas.ClipX, 0.1 * Canvas.ClipY );
@@ -84,7 +97,7 @@ function ShowScores( canvas Canvas )
       Canvas.DrawColor = White; }
     row++;
     DrawBodyCount("Total Kills", scoreholder.killtotal, Canvas, row++);
-    DrawdiffCount("Difficlulty", difficulties[Level.Game.Difficulty], Canvas, row++);
+    DrawdiffCount("Difficulty", difficulties[Level.Game.Difficulty], Canvas, row++);
     DrawBodyCount("Score", scoreholder.score, Canvas, row++);
     row++;
     DrawdiffCount("Map Title", level.title, Canvas, row++);              //kinda mirror DM....
@@ -94,7 +107,7 @@ function ShowScores( canvas Canvas )
 
   } else {
   
-    Canvas.Font = Canvas.MedFont;
+    Canvas.Font = oldskoolbasehud(OwnerHUD).MyFonts.GetMediumFont(Canvas.ClipX);
     Canvas.SetPos(0.2 * Canvas.ClipX, 0.2 * Canvas.ClipY );
     Canvas.DrawText("Score Keeper inventory not found!!! Please stop ]-[4xx1ng the code!", False);
   
@@ -103,16 +116,16 @@ function ShowScores( canvas Canvas )
 
 function DrawBodyCount(string thingy, int amount, canvas Canvas, int row)
 {
-  Canvas.SetPos(0.2 * Canvas.ClipX, 0.1 * Canvas.ClipY + 10 * row );
+  Canvas.SetPos(0.2 * Canvas.ClipX, 0.1 * Canvas.ClipY + (RowHeight + 2) * row );
   Canvas.DrawText(thingy, False);
-  Canvas.SetPos(0.6 * Canvas.ClipX, 0.1 * Canvas.ClipY + 10 * row );
+  Canvas.SetPos(0.6 * Canvas.ClipX, 0.1 * Canvas.ClipY + (RowHeight + 2) * row );
   Canvas.DrawText(amount, False);
 }
 function DrawdiffCount(string thingy, string amount, canvas Canvas, int row)           //just for the difficulties...
 {
-  Canvas.SetPos(0.2 * Canvas.ClipX, 0.1 * Canvas.ClipY + 10 * row );
+  Canvas.SetPos(0.2 * Canvas.ClipX, 0.1 * Canvas.ClipY + (RowHeight + 2) * row );
   Canvas.DrawText(thingy, False);
-  Canvas.SetPos(0.6 * Canvas.ClipX, 0.1 * Canvas.ClipY + 10 * row );
+  Canvas.SetPos(0.6 * Canvas.ClipX, 0.1 * Canvas.ClipY + (RowHeight + 2) * row );
   Canvas.DrawText(amount, False);
 }
 

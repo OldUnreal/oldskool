@@ -18,7 +18,7 @@ simulated function DrawFragCount(Canvas Canvas, int X, int Y)     //to make bett
   Canvas.CurY += 23;
   if ( PawnOwner.PlayerReplicationInfo == None )
     return;
-  Canvas.Font = Font'TinyWhiteFont';
+  Canvas.Font = MyFonts.GetSmallFont(Canvas.ClipX);
   if (PawnOwner.PlayerReplicationInfo.score<10000)
     Canvas.CurX+=6;
   if (PawnOwner.PlayerReplicationInfo.score<1000)
