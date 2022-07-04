@@ -1,6 +1,6 @@
 # OldSkool Amp'd for Unreal Tournament 469
 
-This is a modified version of UsAaR33's OldSkool Amp'd mod (version 2.30).
+This is a modified version of UsAaR33's OldSkool Amp'd mod (version 2.39).
 
 This version leverages UT 469-specific features to scale up the HUD and crosshair, while remaining network-compatible with UT 432-451 clients.
 
