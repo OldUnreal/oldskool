@@ -46,6 +46,7 @@ var somemessage CriticalMessage; //last criticalevent
 
 // OldUnreal additions
 var float HUDScale, Scale;
+var ChallengeHUD ConfigHUD;
 
 // If we allow the HUD and fonts to scale independently, we might need to adjust the Y offset of
 // icon + text pairs (e.g., health/armor) to ensure that they are nicely centered
@@ -96,6 +97,8 @@ function Destroyed()
   Super.Destroyed();
   if ( MyFonts != None )
     MyFonts.Destroy();
+  if ( ConfigHUD != None )
+    ConfigHUD.Destroy();
 }
 exec function ShowServerInfo()
 {
@@ -113,6 +116,9 @@ simulated function Timer()    //for ending hud h4x
 }
 simulated function postbeginplay(){       //defaults that get set this way....
 Super.Postbeginplay();
+
+ConfigHUD = spawn(class'Botpack.ChallengeHUD');
+
 FaceAreaOffset = -64;
 if(Level.DefaultGameType == class'endgame')  //verify the gametypes and set accordingly..
 nohud=true;
@@ -1233,6 +1239,38 @@ simulated function DrawCrossHair( canvas Canvas, int StartX, int StartY )
 	local float XScale, PickDiff;
 	local float XLength, YLength;
 	local texture T;
+	local string Tmp;
+	local bool AutoCrosshairScale, AlwaysCenterCrosshair, SmoothCrosshair, TranslucentCrosshair;
+	local float CHScale;
+
+	// Read 469 crosshair options
+	AutoCrosshairScale = true;
+	AlwaysCenterCrosshair = true;
+	SmoothCrosshair = true;
+	TranslucentCrosshair = false;
+	CHScale = 1.0;
+	if (ConfigHUD != None)
+	{
+	    Tmp = ConfigHUD.GetPropertyText("bAutoCrosshairScale");
+	    if (Tmp != "" && Left(Tmp, 12) != "Unrecognized")
+		    AutoCrosshairScale = bool(Tmp);
+
+        Tmp = ConfigHUD.GetPropertyText("CrosshairScale");
+	    if (Tmp != "" && Left(Tmp, 12) != "Unrecognized")
+	        CHScale = float(Tmp);
+
+        Tmp = ConfigHUD.GetPropertyText("bAlwaysCenterCrosshair");
+	    if (Tmp != "" && Left(Tmp, 12) != "Unrecognized")
+	        AlwaysCenterCrosshair = bool(Tmp);
+
+	    Tmp = ConfigHUD.GetPropertyText("bSmoothCrosshair");
+	    if (Tmp != "" && Left(Tmp, 12) != "Unrecognized")
+	        SmoothCrosshair = bool(Tmp);
+
+	    Tmp = ConfigHUD.GetPropertyText("bTranslucentCrosshair");
+	    if (Tmp != "" && Left(Tmp, 12) != "Unrecognized")
+	        TranslucentCrosshair = bool(Tmp);
+	}
 
     if (olCrosshair>5) Return;
 
@@ -1256,7 +1294,7 @@ simulated function DrawCrossHair( canvas Canvas, int StartX, int StartY )
     else if (olCrosshair==4)   T = Texture'Crosshair5';
     else if (olCrosshair==5)   T = Texture'Crosshair7';
 
-	if (class'ChallengeHUD'.default.bAutoCrosshairScale)
+	if (AutoCrosshairScale)
 	{
 		if ( Canvas.ClipX < 512 )
 		    XScale = 0.5;
@@ -1265,21 +1303,21 @@ simulated function DrawCrossHair( canvas Canvas, int StartX, int StartY )
 	}
 	else
 	{
-		XScale = class'ChallengeHUD'.default.CrosshairScale;
+		XScale = CHScale;
 	}
 
 	XLength = XScale * T.USize;
 	YLength = XScale * T.VSize;
 
-	Canvas.bNoSmooth = !class'ChallengeHUD'.default.bSmoothCrosshair;
-	if ( class'ChallengeHUD'.default.bAlwaysCenterCrosshair || (PlayerOwner.Handedness != 1 && PlayerOwner.HandedNess != -1) )
+	Canvas.bNoSmooth = !SmoothCrosshair;
+	if ( AlwaysCenterCrosshair || (PlayerOwner.Handedness != 1 && PlayerOwner.HandedNess != -1) )
 		Canvas.SetPos(0.5 * (Canvas.ClipX - XLength), 0.5 * (Canvas.ClipY - YLength));
 	else if ( class'ChallengeHUD'.default.PlayerOwner.Handedness == -1 )
 		Canvas.SetPos(0.503 * (Canvas.ClipX - XLength), 0.504 * (Canvas.ClipY - YLength));
 	else if ( class'ChallengeHUD'.default.PlayerOwner.Handedness == 1 )
 		Canvas.SetPos(0.497 * (Canvas.ClipX - XLength), 0.496 * (Canvas.ClipY - YLength));
 
-    if (class'ChallengeHUD'.default.bTranslucentCrosshair)
+    if (TranslucentCrosshair)
         Canvas.Style = ERenderStyle.STY_Translucent;
 	else
 	    Canvas.Style = ERenderStyle.STY_Normal;
